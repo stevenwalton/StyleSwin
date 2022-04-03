@@ -15,6 +15,7 @@ from torch import autograd, nn, optim
 from torch.nn import functional as F
 from torch.utils import data
 from torchvision import transforms
+from torchvision.utils import make_grid
 
 try:
     import wandb
@@ -278,6 +279,10 @@ def evaluation(generator, args, steps):
             out_sample, _ = generator(noise)
             out_sample = tensor_transform_reverse(out_sample)
 
+            if args.wandb:
+                grid = make_grid(out_sample[:64], nrow=8)
+                wandb.log({"samples": wandb.Image(grid)})
+
             if not os.path.exists(os.path.join(args.sample_path, "eval_{}".format(str(steps)))):
                 os.mkdir(os.path.join(args.sample_path,
                                       "eval_{}".format(str(steps))))
@@ -484,10 +489,11 @@ if __name__ == "__main__":
             ]
         )
 
-    if args.lmdb:
-        dataset = MultiResolutionDataset(args.path, transform, args.size)
-    else:
-        dataset = datasets.ImageFolder(root=args.path, transform=transform)
+    #if args.lmdb:
+    #    dataset = MultiResolutionDataset(args.path, transform, args.size)
+    #else:
+    #    dataset = datasets.ImageFolder(root=args.path, transform=transform)
+    dataset = datasets.CIFAR10(root="/data/datasets/", download=True, transform=transform)
                 
     loader = data.DataLoader(
         dataset,
@@ -498,6 +504,7 @@ if __name__ == "__main__":
     )
 
     if get_rank() == 0 and wandb is not None and args.wandb:
-        wandb.init(project=args.project_name)
+        #wandb.init(project=args.project_name)
+        wandb.init(project="StyleNAT", entity="sjwaltonteam", name="CIFAR_StyleSwin")
 
     train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device)
